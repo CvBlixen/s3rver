@@ -8,14 +8,9 @@
   },
   "plugins": ["prettier"],
   "extends": [
-    "standard",
     "prettier"
   ],
   "rules": {
-    "new-cap": ["error", {
-      "newIsCapExceptions": ["j2xParser"]
-    }],
-
     "prettier/prettier": "error"
   },
   "overrides": [
