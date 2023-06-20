@@ -5,6 +5,7 @@ coverage/
 # Dependencies
 node_modules/
 package-lock.json
+yarn.lock
 
 # JSON configuration files
 .eslintrc
@@ -12,3 +13,5 @@ package-lock.json
 # IDEs
 .idea/
 .vscode/
+
+README.md
