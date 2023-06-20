@@ -1,6 +1,6 @@
 'use strict';
 
-const AWS = require('aws-sdk');
+const AWS = require('./sdk-v2');
 const { RequestSigner } = require('aws4');
 const crypto = require('crypto');
 const xmlParser = require('fast-xml-parser');
