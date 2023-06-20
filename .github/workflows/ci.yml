@@ -28,11 +28,6 @@ jobs:
       - name: Code coverage
         run: npx nyc --reporter=lcovonly npm test
 
-      - uses: codecov/codecov-action@v3
-        with:
-          files: ./coverage/lcov.info
-          fail_ci_if_error: true
-
       - name: Lint
         run: npx eslint .
 
