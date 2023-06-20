@@ -19,7 +19,7 @@ const instances = new Set();
 
 exports.resetTmpDir = function resetTmpDir() {
   try {
-    fs.rmdirSync(tmpDir, { recursive: true });
+    fs.rmSync(tmpDir, { recursive: true });
   } catch (err) {
     /* directory didn't exist */
   }
