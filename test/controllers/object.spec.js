@@ -9,10 +9,8 @@ const http = require('http');
 const { find, times } = require('lodash');
 const moment = require('moment');
 const pMap = require('p-map');
-const request = require('request-promise-native').defaults({
-  resolveWithFullResponse: true,
-});
 const { URL, URLSearchParams } = require('url');
+const axios = require('axios');
 
 const {
   createServerAndClient,
@@ -174,10 +172,11 @@ describe('Operations on Objects', () => {
         Bucket: 'bucket-a',
         Key: 'image',
       });
-      const res = await request(url, {
+      const res = await axios({
+        url,
         headers: { range: 'bytes=0-99' },
       });
-      expect(res.statusCode).to.equal(206);
+      expect(res.status).to.equal(206);
       expect(res.headers).to.have.property('content-range');
       expect(res.headers).to.have.property('accept-ranges');
       expect(res.headers).to.have.property('content-length', '100');
@@ -197,10 +196,11 @@ describe('Operations on Objects', () => {
         Bucket: 'bucket-a',
         Key: 'image',
       });
-      const res = await request(url, {
+      const res = await axios({
+        url,
         headers: {},
       });
-      expect(res.statusCode).to.equal(200);
+      expect(res.status).to.equal(200);
       expect(res.headers).to.not.have.property('content-range');
       expect(res.headers).to.have.property('accept-ranges');
       expect(res.headers).to.have.property('content-length', '52359');
@@ -220,10 +220,11 @@ describe('Operations on Objects', () => {
         Bucket: 'bucket-a',
         Key: 'image',
       });
-      const res = await request(url, {
+      const res = await axios({
+        url,
         headers: { range: 'bytes=0-' },
       });
-      expect(res.statusCode).to.equal(206);
+      expect(res.status).to.equal(206);
       expect(res.headers).to.have.property('content-range');
       expect(res.headers).to.have.property('accept-ranges');
       expect(res.headers).to.have.property('content-length', '52359');
@@ -247,14 +248,15 @@ describe('Operations on Objects', () => {
 
       let error;
       try {
-        await request(url, {
+        await axios({
+          url,
           headers: { range: `bytes=${filesize + 100}-${filesize + 200}` },
         });
       } catch (err) {
         error = err;
       }
       expect(error).to.exist;
-      expect(error.response.statusCode).to.equal(416);
+      expect(error.response.status).to.equal(416);
     });
 
     it('returns actual length of data for partial out of bounds range requests', async function () {
@@ -272,10 +274,11 @@ describe('Operations on Objects', () => {
         Bucket: 'bucket-a',
         Key: 'image',
       });
-      const res = await request(url, {
+      const res = await axios({
+        url,
         headers: { range: 'bytes=0-100000' },
       });
-      expect(res.statusCode).to.equal(206);
+      expect(res.status).to.equal(206);
       expect(res.headers).to.have.property('content-range');
       expect(res.headers).to.have.property('accept-ranges');
       expect(res.headers).to.have.property(
@@ -380,12 +383,14 @@ describe('Operations on Objects', () => {
       const form = new FormData();
       form.append('key', 'text');
       form.append('file', 'Hello!', 'post_file.txt');
-      const res = await request.post('bucket-a', {
-        baseUrl: s3Client.endpoint.href,
-        body: form,
+      const res = await axios({
+        method: 'post',
+        url: 'bucket-a',
+        baseURL: s3Client.endpoint.href,
+        data: form,
         headers: form.getHeaders(),
       });
-      expect(res.statusCode).to.equal(204);
+      expect(res.status).to.equal(204);
       const object = await s3Client
         .getObject({ Bucket: 'bucket-a', Key: 'text' })
         .promise();
@@ -396,9 +401,11 @@ describe('Operations on Objects', () => {
     it('rejects requests with an invalid content-type', async function () {
       let res;
       try {
-        res = await request.post('bucket-a', {
-          baseUrl: s3Client.endpoint.href,
-          body: new URLSearchParams({
+        res = await axios({
+          url: 'bucket-a',
+          method: 'post',
+          baseURL: s3Client.endpoint.href,
+          data: new URLSearchParams({
             key: 'text',
             file: 'Hello!',
           }).toString(),
@@ -406,8 +413,8 @@ describe('Operations on Objects', () => {
       } catch (err) {
         res = err.response;
       }
-      expect(res.statusCode).to.equal(412);
-      expect(res.body).to.contain(
+      expect(res.status).to.equal(412);
+      expect(res.data).to.contain(
         '<Condition>Bucket POST must be of the enclosure-type multipart/form-data</Condition>',
       );
     });
@@ -416,12 +423,14 @@ describe('Operations on Objects', () => {
       const form = new FormData();
       form.append('key', 'text');
       form.append('file', 'Hello!');
-      const res = await request.post('bucket-a', {
-        baseUrl: s3Client.endpoint.href,
-        body: form,
+      const res = await axios({
+        url: 'bucket-a',
+        method: 'post',
+        baseURL: s3Client.endpoint.href,
+        data: form,
         headers: form.getHeaders(),
       });
-      expect(res.statusCode).to.equal(204);
+      expect(res.status).to.equal(204);
       const object = await s3Client
         .getObject({ Bucket: 'bucket-a', Key: 'text' })
         .promise();
@@ -434,12 +443,14 @@ describe('Operations on Objects', () => {
       form.append('key', 'text');
       form.append('Content-Type', 'text/plain');
       form.append('file', 'Hello!', 'post_file.txt');
-      const res = await request.post('bucket-a', {
-        baseUrl: s3Client.endpoint.href,
-        body: form,
+      const res = await axios({
+        url: 'bucket-a',
+        method: 'post',
+        baseURL: s3Client.endpoint.href,
+        data: form,
         headers: form.getHeaders(),
       });
-      expect(res.statusCode).to.equal(204);
+      expect(res.status).to.equal(204);
       const object = await s3Client
         .getObject({ Bucket: 'bucket-a', Key: 'text' })
         .promise();
@@ -452,20 +463,22 @@ describe('Operations on Objects', () => {
       const form = new FormData();
       form.append('key', 'image');
       form.append('file', fs.createReadStream(file));
-      const res = await request.post('bucket-a', {
-        baseUrl: s3Client.endpoint.href,
-        body: form,
+      const res = await axios({
+        url: 'bucket-a',
+        method: 'post',
+        baseURL: s3Client.endpoint.href,
+        data: form,
         headers: form.getHeaders(),
       });
-      expect(res.statusCode).to.equal(204);
+      expect(res.status).to.equal(204);
       expect(res.headers).to.have.property(
         'location',
         new URL('/bucket-a/image', s3Client.endpoint.href).href,
       );
-      const objectRes = await request(res.headers.location, {
-        encoding: null,
+      const objectRes = await axios(res.headers.location, {
+        responseType: 'arraybuffer',
       });
-      expect(objectRes.body).to.deep.equal(fs.readFileSync(file));
+      expect(objectRes.data).to.deep.equal(fs.readFileSync(file));
     });
 
     it('returns the location of the stored object in a header with vhost URL', async function () {
@@ -473,15 +486,17 @@ describe('Operations on Objects', () => {
       const form = new FormData();
       form.append('key', 'image');
       form.append('file', fs.createReadStream(file));
-      const res = await request.post('', {
-        baseUrl: s3Client.endpoint.href,
-        body: form,
+      const res = await axios({
+        url: '',
+        method: 'post',
+        baseURL: s3Client.endpoint.href,
+        data: form,
         headers: {
           host: 'bucket-a',
           ...form.getHeaders(),
         },
       });
-      expect(res.statusCode).to.equal(204);
+      expect(res.status).to.equal(204);
       expect(res.headers).to.have.property(
         'location',
         new URL('/image', `http://bucket-a`).href,
@@ -493,15 +508,17 @@ describe('Operations on Objects', () => {
       const form = new FormData();
       form.append('key', 'image');
       form.append('file', fs.createReadStream(file));
-      const res = await request.post('', {
-        baseUrl: s3Client.endpoint.href,
-        body: form,
+      const res = await axios({
+        method: 'post',
+        url: '',
+        baseURL: s3Client.endpoint.href,
+        data: form,
         headers: {
           host: 'bucket-a.s3.amazonaws.com',
           ...form.getHeaders(),
         },
       });
-      expect(res.statusCode).to.equal(204);
+      expect(res.status).to.equal(204);
       expect(res.headers).to.have.property(
         'location',
         new URL('/image', 'http://bucket-a.s3.amazonaws.com').href,
@@ -513,14 +530,16 @@ describe('Operations on Objects', () => {
       form.append('key', 'text');
       form.append('success_action_status', '200');
       form.append('file', 'Hello!');
-      const res = await request.post('bucket-a', {
-        baseUrl: s3Client.endpoint.href,
-        body: form,
+      const res = await axios({
+        url: 'bucket-a',
+        method: 'post',
+        baseURL: s3Client.endpoint.href,
+        data: form,
         headers: form.getHeaders(),
       });
-      expect(res.statusCode).to.equal(200);
+      expect(res.status).to.equal(200);
       expect(res.headers).not.to.have.property('content-type');
-      expect(res.body).to.equal('');
+      expect(res.data).to.equal('');
     });
 
     it('returns a 201 status code with XML response body', async function () {
@@ -528,15 +547,17 @@ describe('Operations on Objects', () => {
       form.append('key', 'text');
       form.append('success_action_status', '201');
       form.append('file', 'Hello!');
-      const res = await request.post('bucket-a', {
-        baseUrl: s3Client.endpoint.href,
-        body: form,
+      const res = await axios({
+        url: 'bucket-a',
+        method: 'post',
+        baseURL: s3Client.endpoint.href,
+        data: form,
         headers: form.getHeaders(),
       });
-      expect(res.statusCode).to.equal(201);
+      expect(res.status).to.equal(201);
       expect(res.headers).to.have.property('content-type', 'application/xml');
-      expect(res.body).to.contain('<PostResponse>');
-      expect(res.body).to.contain('<Bucket>bucket-a</Bucket><Key>text</Key>');
+      expect(res.data).to.contain('<PostResponse>');
+      expect(res.data).to.contain('<Bucket>bucket-a</Bucket><Key>text</Key>');
     });
 
     it('returns a 204 status code when an invalid status is specified', async function () {
@@ -544,12 +565,14 @@ describe('Operations on Objects', () => {
       form.append('key', 'text');
       form.append('success_action_status', '301');
       form.append('file', 'Hello!');
-      const res = await request.post('bucket-a', {
-        baseUrl: s3Client.endpoint.href,
-        body: form,
+      const res = await axios({
+        url: 'bucket-a',
+        method: 'post',
+        baseURL: s3Client.endpoint.href,
+        data: form,
         headers: form.getHeaders(),
       });
-      expect(res.statusCode).to.equal(204);
+      expect(res.status).to.equal(204);
     });
 
     it('redirects a custom location with search parameters', async function () {
@@ -560,15 +583,18 @@ describe('Operations on Objects', () => {
       form.append('file', 'Hello!');
       let res;
       try {
-        res = await request.post('bucket-a', {
-          baseUrl: s3Client.endpoint.href,
-          body: form,
+        res = await axios({
+          url: 'bucket-a',
+          method: 'post',
+          baseURL: s3Client.endpoint.href,
+          data: form,
           headers: form.getHeaders(),
+          maxRedirects: 0,
         });
       } catch (err) {
         res = err.response;
       }
-      expect(res.statusCode).to.equal(303);
+      expect(res.status).to.equal(303);
       const location = new URL(res.headers.location);
       expect(location.host).to.equal(successRedirect.host);
       expect(location.pathname).to.equal(successRedirect.pathname);
@@ -588,15 +614,18 @@ describe('Operations on Objects', () => {
       form.append('file', 'Hello!');
       let res;
       try {
-        res = await request.post('bucket-a', {
-          baseUrl: s3Client.endpoint.href,
-          body: form,
+        res = await axios({
+          url: 'bucket-a',
+          method: 'post',
+          baseURL: s3Client.endpoint.href,
+          data: form,
           headers: form.getHeaders(),
+          maxRedirects: 0,
         });
       } catch (err) {
         res = err.response;
       }
-      expect(res.statusCode).to.equal(303);
+      expect(res.status).to.equal(303);
       const location = new URL(res.headers.location);
       expect(location.host).to.equal(successRedirect.host);
       expect(location.pathname).to.equal(successRedirect.pathname);
@@ -611,15 +640,18 @@ describe('Operations on Objects', () => {
       form.append('file', 'Hello!');
       let res;
       try {
-        res = await request.post('bucket-a', {
-          baseUrl: s3Client.endpoint.href,
-          body: form,
+        res = await axios({
+          method: 'post',
+          url: 'bucket-a',
+          baseURL: s3Client.endpoint.href,
+          data: form,
           headers: form.getHeaders(),
+          maxRedirects: 0,
         });
       } catch (err) {
         res = err.response;
       }
-      expect(res.statusCode).to.equal(303);
+      expect(res.status).to.equal(303);
       const location = new URL(res.headers.location);
       expect(location.host).to.equal(successRedirect.host);
       expect(location.pathname).to.equal(successRedirect.pathname);
@@ -634,15 +666,18 @@ describe('Operations on Objects', () => {
       form.append('file', 'Hello!');
       let res;
       try {
-        res = await request.post('bucket-a', {
-          baseUrl: s3Client.endpoint.href,
-          body: form,
+        res = await axios({
+          url: 'bucket-a',
+          method: 'post',
+          baseURL: s3Client.endpoint.href,
+          data: form,
           headers: form.getHeaders(),
+          maxRedirects: 0,
         });
       } catch (err) {
         res = err.response;
       }
-      expect(res.statusCode).to.equal(303);
+      expect(res.status).to.equal(303);
     });
 
     it('ignores fields specified after the file field', async function () {
@@ -651,15 +686,15 @@ describe('Operations on Objects', () => {
       form.append('file', 'Hello!');
       form.append('Content-Type', 'text/plain');
       form.append('success_action_status', '200');
-      const res = await request.post('bucket-a', {
-        baseUrl: s3Client.endpoint.href,
-        body: form,
+      const res = await axios({
+        method: 'post',
+        url: 'bucket-a',
+        baseURL: s3Client.endpoint.href,
+        data: form,
         headers: form.getHeaders(),
       });
-      const objectRes = await request(res.headers.location, {
-        encoding: null,
-      });
-      expect(res.statusCode).to.equal(204);
+      const objectRes = await axios(res.headers.location);
+      expect(res.status).to.equal(204);
       expect(objectRes.headers).to.not.have.property(
         'content-type',
         'text/plain',
@@ -671,16 +706,18 @@ describe('Operations on Objects', () => {
       form.append('file', 'Hello!');
       let res;
       try {
-        res = await request.post('bucket-a', {
-          baseUrl: s3Client.endpoint.href,
-          body: form,
+        res = await axios({
+          method: 'post',
+          url: 'bucket-a',
+          baseURL: s3Client.endpoint.href,
+          data: form,
           headers: form.getHeaders(),
         });
       } catch (err) {
         res = err.response;
       }
-      expect(res.statusCode).to.equal(400);
-      expect(res.body).to.contain(
+      expect(res.status).to.equal(400);
+      expect(res.data).to.contain(
         '<ArgumentName>key</ArgumentName><ArgumentValue></ArgumentValue>',
       );
     });
@@ -691,16 +728,18 @@ describe('Operations on Objects', () => {
       form.append('file', 'Hello!');
       let res;
       try {
-        res = await request.post('bucket-a', {
-          baseUrl: s3Client.endpoint.href,
-          body: form,
+        res = await axios({
+          method: 'post',
+          url: 'bucket-a',
+          baseURL: s3Client.endpoint.href,
+          data: form,
           headers: form.getHeaders(),
         });
       } catch (err) {
         res = err.response;
       }
-      expect(res.statusCode).to.equal(400);
-      expect(res.body).to.contain(
+      expect(res.status).to.equal(400);
+      expect(res.data).to.contain(
         '<Message>User key must have a length greater than 0.</Message>',
       );
     });
@@ -710,16 +749,18 @@ describe('Operations on Objects', () => {
       form.append('key', 'text');
       let res;
       try {
-        res = await request.post('bucket-a', {
-          baseUrl: s3Client.endpoint.href,
-          body: form,
+        res = await axios({
+          method: 'post',
+          url: 'bucket-a',
+          baseURL: s3Client.endpoint.href,
+          data: form,
           headers: form.getHeaders(),
         });
       } catch (err) {
         res = err.response;
       }
-      expect(res.statusCode).to.equal(400);
-      expect(res.body).to.contain(
+      expect(res.status).to.equal(400);
+      expect(res.data).to.contain(
         '<ArgumentName>file</ArgumentName><ArgumentValue>0</ArgumentValue>',
       );
     });
@@ -813,11 +854,16 @@ describe('Operations on Objects', () => {
     });
 
     it('stores a text object with no content type and retrieves it', async function () {
-      const res = await request.put('bucket-a/text', {
-        baseUrl: s3Client.endpoint.href,
-        body: 'Hello!',
+      const res = await axios({
+        method: 'put',
+        url: 'bucket-a/text',
+        baseURL: s3Client.endpoint.href,
+        data: 'Hello!',
+        headers: {
+          'content-type': 'binary/octet-stream',
+        },
       });
-      expect(res.statusCode).to.equal(200);
+      expect(res.status).to.equal(200);
       const data = await s3Client
         .getObject({ Bucket: 'bucket-a', Key: 'text' })
         .promise();

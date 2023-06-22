@@ -3,9 +3,7 @@
 const AWS = require('../sdk-v2');
 const { expect } = require('chai');
 const fs = require('fs');
-const request = require('request-promise-native').defaults({
-  resolveWithFullResponse: true,
-});
+const axios = require('axios');
 
 const S3rver = require('../..');
 
@@ -144,10 +142,10 @@ describe('CORS Policy Tests', function () {
         Bucket: bucket.name,
         Key: 'image',
       });
-      const res = await request(url, {
+      const res = await axios(url, {
         headers: { origin },
       });
-      expect(res.statusCode).to.equal(200);
+      expect(res.status).to.equal(200);
       expect(res.headers).to.have.property('access-control-allow-origin', '*');
     } finally {
       await server.close();
@@ -182,10 +180,10 @@ describe('CORS Policy Tests', function () {
         Bucket: buckets[0].name,
         Key: 'image',
       });
-      const res = await request(url, {
+      const res = await axios(url, {
         headers: { origin },
       });
-      expect(res.statusCode).to.equal(200);
+      expect(res.status).to.equal(200);
       expect(res.headers).to.have.property(
         'access-control-allow-origin',
         origin,
@@ -223,10 +221,10 @@ describe('CORS Policy Tests', function () {
         Bucket: buckets[0].name,
         Key: 'image',
       });
-      const res = await request(url, {
+      const res = await axios(url, {
         headers: { origin },
       });
-      expect(res.statusCode).to.equal(200);
+      expect(res.status).to.equal(200);
       expect(res.headers).to.have.property(
         'access-control-allow-origin',
         origin,
@@ -264,10 +262,10 @@ describe('CORS Policy Tests', function () {
         Bucket: buckets[0].name,
         Key: 'image',
       });
-      const res = await request(url, {
+      const res = await axios(url, {
         headers: { origin },
       });
-      expect(res.statusCode).to.equal(200);
+      expect(res.status).to.equal(200);
       expect(res.headers).to.not.have.property('access-control-allow-origin');
     } finally {
       await server.close();
@@ -302,10 +300,10 @@ describe('CORS Policy Tests', function () {
         Bucket: buckets[0].name,
         Key: 'image',
       });
-      const res = await request(url, {
+      const res = await axios(url, {
         headers: { origin, range: 'bytes=0-99' },
       });
-      expect(res.statusCode).to.equal(206);
+      expect(res.status).to.equal(206);
       expect(res.headers).to.have.property(
         'access-control-expose-headers',
         'Accept-Ranges, Content-Range',
@@ -333,7 +331,7 @@ describe('CORS Policy Tests', function () {
       Key: 'image',
     });
     try {
-      const res = await request(url, {
+      const res = await axios(url, {
         method: 'OPTIONS',
         headers: {
           origin,
@@ -341,7 +339,7 @@ describe('CORS Policy Tests', function () {
           'Access-Control-Request-Headers': 'Range, Authorization',
         },
       });
-      expect(res.statusCode).to.equal(200);
+      expect(res.status).to.equal(200);
       expect(res.headers).to.have.property('access-control-allow-origin', '*');
       expect(res.headers).to.have.property(
         'access-control-allow-headers',
@@ -371,7 +369,7 @@ describe('CORS Policy Tests', function () {
     });
     let error;
     try {
-      await request(url, {
+      await axios(url, {
         method: 'OPTIONS',
         headers: {
           origin,
@@ -385,7 +383,7 @@ describe('CORS Policy Tests', function () {
       await server.close();
     }
     expect(error).to.exist;
-    expect(error.response.statusCode).to.equal(403);
+    expect(error.response.status).to.equal(403);
   });
 
   it('responds to OPTIONS requests with a Forbidden response when CORS is disabled', async function () {
@@ -408,7 +406,7 @@ describe('CORS Policy Tests', function () {
     });
     let error;
     try {
-      await request(url, {
+      await axios(url, {
         method: 'OPTIONS',
         headers: {
           origin,
@@ -421,7 +419,7 @@ describe('CORS Policy Tests', function () {
       await server.close();
     }
     expect(error).to.exist;
-    expect(error.response.statusCode).to.equal(403);
+    expect(error.response.status).to.equal(403);
   });
 
   it('responds correctly to OPTIONS requests that dont specify access-control-request-headers', async function () {
@@ -442,7 +440,7 @@ describe('CORS Policy Tests', function () {
       Key: 'image',
     });
     try {
-      await request(url, {
+      await axios(url, {
         method: 'OPTIONS',
         headers: {
           origin,

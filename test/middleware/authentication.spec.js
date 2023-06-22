@@ -3,10 +3,8 @@
 const { expect } = require('chai');
 const express = require('express');
 const fs = require('fs');
-const request = require('request-promise-native').defaults({
-  resolveWithFullResponse: true,
-});
 const { URL } = require('url');
+const axios = require('axios');
 
 const { toISO8601String } = require('../../lib/utils');
 
@@ -41,11 +39,12 @@ describe('REST Authentication', () => {
       Key: 'text',
     });
     const { host, pathname, searchParams } = new URL(url);
-    const res = await request(new URL(pathname, endpointHref), {
-      qs: searchParams,
+    const res = await axios({
+      url: new URL(pathname, endpointHref),
+      data: searchParams,
       headers: { host },
     });
-    expect(res.body).to.equal('Hello!');
+    expect(res.data).to.equal('Hello!');
   });
 
   it('can GET a signed URL with vhost bucket', async function () {
@@ -65,19 +64,21 @@ describe('REST Authentication', () => {
       Key: 'text',
     });
     const { host, pathname, searchParams } = new URL(url);
-    const res = await request(new URL(pathname, endpointHref), {
-      qs: searchParams,
+    const res = await axios({
+      url: new URL(pathname, endpointHref),
+      data: searchParams,
       headers: { host },
     });
-    expect(res.body).to.equal('Hello!');
+    expect(res.data).to.equal('Hello!');
   });
 
   it('rejects a request specifying multiple auth mechanisms', async function () {
     let res;
     try {
-      res = await request('bucket-a/mykey', {
-        baseUrl: s3Client.endpoint.href,
-        qs: {
+      res = await axios({
+        url: 'bucket-a/mykey',
+        baseURL: s3Client.endpoint.href,
+        params: {
           'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
           Signature: 'dummysig',
         },
@@ -88,15 +89,16 @@ describe('REST Authentication', () => {
     } catch (err) {
       res = err.response;
     }
-    expect(res.statusCode).to.equal(400);
-    expect(res.body).to.contain('<Code>InvalidArgument</Code>');
+    expect(res.status).to.equal(400);
+    expect(res.data).to.contain('<Code>InvalidArgument</Code>');
   });
 
   it('rejects a request with an invalid authorization header [v2]', async function () {
     let res;
     try {
-      res = await request('bucket-a/mykey', {
-        baseUrl: s3Client.endpoint.href,
+      res = await axios({
+        url: 'bucket-a/mykey',
+        baseURL: s3Client.endpoint.href,
         headers: {
           Authorization: 'AWS S3RVER dummysig',
         },
@@ -104,15 +106,16 @@ describe('REST Authentication', () => {
     } catch (err) {
       res = err.response;
     }
-    expect(res.statusCode).to.equal(400);
-    expect(res.body).to.contain('<Code>InvalidArgument</Code>');
+    expect(res.status).to.equal(400);
+    expect(res.data).to.contain('<Code>InvalidArgument</Code>');
   });
 
   it('rejects a request with an invalid authorization header [v4]', async function () {
     let res;
     try {
-      res = await request('bucket-a/mykey', {
-        baseUrl: s3Client.endpoint.href,
+      res = await axios({
+        url: 'bucket-a/mykey',
+        baseURL: s3Client.endpoint.href,
         headers: {
           // omitting Signature and SignedHeaders components
           Authorization:
@@ -123,16 +126,17 @@ describe('REST Authentication', () => {
     } catch (err) {
       res = err.response;
     }
-    expect(res.statusCode).to.equal(400);
-    expect(res.body).to.contain('<Code>AuthorizationHeaderMalformed</Code>');
+    expect(res.status).to.equal(400);
+    expect(res.data).to.contain('<Code>AuthorizationHeaderMalformed</Code>');
   });
 
   it('rejects a request with invalid query params [v2]', async function () {
     let res;
     try {
-      res = await request('bucket-a/mykey', {
-        baseUrl: s3Client.endpoint.href,
-        qs: {
+      res = await axios({
+        url: 'bucket-a/mykey',
+        baseURL: s3Client.endpoint.href,
+        params: {
           AWSAccessKeyId: 'S3RVER',
           Signature: 'dummysig',
           // expiration is omitted
@@ -141,16 +145,17 @@ describe('REST Authentication', () => {
     } catch (err) {
       res = err.response;
     }
-    expect(res.statusCode).to.equal(403);
-    expect(res.body).to.contain('<Code>AccessDenied</Code>');
+    expect(res.status).to.equal(403);
+    expect(res.data).to.contain('<Code>AccessDenied</Code>');
   });
 
   it('rejects a request with invalid query params [v4]', async function () {
     let res;
     try {
-      res = await request('bucket-a/mykey', {
-        baseUrl: s3Client.endpoint.href,
-        qs: {
+      res = await axios({
+        url: 'bucket-a/mykey',
+        baseURL: s3Client.endpoint.href,
+        params: {
           'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
           'X-Amz-Signature': 'dummysig',
           // omitting most other parameters for sig v4
@@ -159,8 +164,8 @@ describe('REST Authentication', () => {
     } catch (err) {
       res = err.response;
     }
-    expect(res.statusCode).to.equal(400);
-    expect(res.body).to.contain(
+    expect(res.status).to.equal(400);
+    expect(res.data).to.contain(
       '<Code>AuthorizationQueryParametersError</Code>',
     );
   });
@@ -168,8 +173,9 @@ describe('REST Authentication', () => {
   it('rejects a request with an incorrect signature in header [v2]', async function () {
     let res;
     try {
-      res = await request('bucket-a/mykey', {
-        baseUrl: s3Client.endpoint.href,
+      res = await axios({
+        url: 'bucket-a/mykey',
+        baseURL: s3Client.endpoint.href,
         headers: {
           Authorization: 'AWS S3RVER:badsig',
           'X-Amz-Date': new Date().toUTCString(),
@@ -178,16 +184,17 @@ describe('REST Authentication', () => {
     } catch (err) {
       res = err.response;
     }
-    expect(res.statusCode).to.equal(403);
-    expect(res.body).to.contain('<Code>SignatureDoesNotMatch</Code>');
+    expect(res.status).to.equal(403);
+    expect(res.data).to.contain('<Code>SignatureDoesNotMatch</Code>');
   });
 
   it('rejects a request with an incorrect signature in query params [v2]', async function () {
     let res;
     try {
-      res = await request('bucket-a/mykey', {
-        baseUrl: s3Client.endpoint.href,
-        qs: {
+      res = await axios({
+        url: 'bucket-a/mykey',
+        baseURL: s3Client.endpoint.href,
+        params: {
           AWSAccessKeyId: 'S3RVER',
           Signature: 'badsig',
           Expires: (Date.now() / 1000).toFixed() + 900,
@@ -196,15 +203,16 @@ describe('REST Authentication', () => {
     } catch (err) {
       res = err.response;
     }
-    expect(res.statusCode).to.equal(403);
-    expect(res.body).to.contain('<Code>SignatureDoesNotMatch</Code>');
+    expect(res.status).to.equal(403);
+    expect(res.data).to.contain('<Code>SignatureDoesNotMatch</Code>');
   });
 
   it('rejects a request with a large time skew', async function () {
     let res;
     try {
-      res = await request('bucket-a/mykey', {
-        baseUrl: s3Client.endpoint.href,
+      res = await axios({
+        url: 'bucket-a/mykey',
+        baseURL: s3Client.endpoint.href,
         headers: {
           Authorization: 'AWS S3RVER:dummysig',
           // 20 minutes in the future
@@ -214,8 +222,8 @@ describe('REST Authentication', () => {
     } catch (err) {
       res = err.response;
     }
-    expect(res.statusCode).to.equal(403);
-    expect(res.body).to.contain('<Code>RequestTimeTooSkewed</Code>');
+    expect(res.status).to.equal(403);
+    expect(res.data).to.contain('<Code>RequestTimeTooSkewed</Code>');
   });
 
   it('rejects an expired presigned request [v2]', async function () {
@@ -227,12 +235,12 @@ describe('REST Authentication', () => {
     });
     let res;
     try {
-      res = await request(url);
+      res = await axios(url);
     } catch (err) {
       res = err.response;
     }
-    expect(res.statusCode).to.equal(403);
-    expect(res.body).to.contain('<Code>AccessDenied</Code>');
+    expect(res.status).to.equal(403);
+    expect(res.data).to.contain('<Code>AccessDenied</Code>');
   });
 
   it('rejects an expired presigned request [v4]', async function () {
@@ -244,12 +252,12 @@ describe('REST Authentication', () => {
     });
     let res;
     try {
-      res = await request(url);
+      res = await axios(url);
     } catch (err) {
       res = err.response;
     }
-    expect(res.statusCode).to.equal(403);
-    expect(res.body).to.contain('<Code>AccessDenied</Code>');
+    expect(res.status).to.equal(403);
+    expect(res.data).to.contain('<Code>AccessDenied</Code>');
   });
 
   it('rejects a presigned request with an invalid expiration [v4]', async function () {
@@ -257,9 +265,10 @@ describe('REST Authentication', () => {
     // so we have to construct a mostly-valid request ourselves
     let res;
     try {
-      res = await request('bucket-a/mykey', {
-        baseUrl: s3Client.endpoint.href,
-        qs: {
+      res = await axios({
+        url: 'bucket-a/mykey',
+        baseURL: s3Client.endpoint.href,
+        params: {
           'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
           'X-Amz-Credential': 'S3RVER/20060301/us-east-1/s3/aws4_request',
           'X-Amz-SignedHeaders': 'host',
@@ -272,8 +281,8 @@ describe('REST Authentication', () => {
     } catch (err) {
       res = err.response;
     }
-    expect(res.statusCode).to.equal(403);
-    expect(res.body).to.contain('<Code>AccessDenied</Code>');
+    expect(res.status).to.equal(403);
+    expect(res.data).to.contain('<Code>AccessDenied</Code>');
   });
 
   it('overrides response headers in signed GET requests', async function () {
@@ -292,7 +301,7 @@ describe('REST Authentication', () => {
       ResponseContentType: 'image/jpeg',
       ResponseContentDisposition: 'attachment',
     });
-    const res = await request(url);
+    const res = await axios(url);
     expect(res.headers['content-type']).to.equal('image/jpeg');
     expect(res.headers['content-disposition']).to.equal('attachment');
   });
@@ -309,17 +318,17 @@ describe('REST Authentication', () => {
       .promise();
     let res;
     try {
-      res = await request('bucket-a/image', {
-        baseUrl: s3Client.endpoint.href,
-        qs: {
+      res = await axios('bucket-a/image', {
+        baseURL: s3Client.endpoint.href,
+        params: {
           'response-content-type': 'image/jpeg',
         },
       });
     } catch (err) {
       res = err.response;
     }
-    expect(res.statusCode).to.equal(400);
-    expect(res.body).to.contain('<Code>InvalidRequest</Code>');
+    expect(res.status).to.equal(400);
+    expect(res.data).to.contain('<Code>InvalidRequest</Code>');
   });
 
   it('adds x-amz-meta-* metadata specified via query parameters', async function () {
@@ -330,7 +339,7 @@ describe('REST Authentication', () => {
         somekey: 'value',
       },
     });
-    await request.put(url, { body: 'Hello!' });
+    await axios.put(url, { data: 'Hello!' });
     const object = await s3Client
       .headObject({
         Bucket: 'bucket-a',
@@ -358,8 +367,8 @@ describe('REST Authentication', () => {
       Bucket: 'bucket-a',
       Key: 'text',
     });
-    const res = await request(url);
-    expect(res.body).to.equal('Hello!');
+    const res = await axios(url);
+    expect(res.data).to.equal('Hello!');
   });
 
   it('can use signed vhost URLs while mounted on a subpath', async function () {
@@ -387,18 +396,20 @@ describe('REST Authentication', () => {
       Key: 'text',
     });
     const { host, pathname, searchParams } = new URL(url);
-    const res = await request(new URL(pathname, endpointHref), {
-      qs: searchParams,
+    const res = await axios({
+      url: new URL(pathname, endpointHref),
+      data: searchParams,
       headers: { host },
     });
-    expect(res.body).to.equal('Hello!');
+    expect(res.data).to.equal('Hello!');
   });
 
   it('rejects a request with an incorrect signature in header [v4]', async function () {
     let res;
     try {
-      res = await request('bucket-a/mykey', {
-        baseUrl: s3Client.endpoint.href,
+      res = await axios({
+        url: 'bucket-a/mykey',
+        baseURL: s3Client.endpoint.href,
         headers: {
           Authorization:
             'AWS4-HMAC-SHA256 Credential=S3RVER/20060301/us-east-1/s3/aws4_request, SignedHeaders=host, Signature=badsig',
@@ -409,16 +420,17 @@ describe('REST Authentication', () => {
     } catch (err) {
       res = err.response;
     }
-    expect(res.statusCode).to.equal(403);
-    expect(res.body).to.contain('<Code>SignatureDoesNotMatch</Code>');
+    expect(res.status).to.equal(403);
+    expect(res.data).to.contain('<Code>SignatureDoesNotMatch</Code>');
   });
 
   it('rejects a request with an incorrect signature in query params [v4]', async function () {
     let res;
     try {
-      res = await request('bucket-a/mykey', {
-        baseUrl: s3Client.endpoint.href,
-        qs: {
+      res = await axios({
+        url: 'bucket-a/mykey',
+        baseURL: s3Client.endpoint.href,
+        params: {
           'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
           'X-Amz-Credential': 'S3RVER/20200815/eu-west-2/s3/aws4_request',
           'X-Amz-Date': toISO8601String(Date.now()),
@@ -430,7 +442,7 @@ describe('REST Authentication', () => {
     } catch (err) {
       res = err.response;
     }
-    expect(res.statusCode).to.equal(403);
-    expect(res.body).to.contain('<Code>SignatureDoesNotMatch</Code>');
+    expect(res.status).to.equal(403);
+    expect(res.data).to.contain('<Code>SignatureDoesNotMatch</Code>');
   });
 });
