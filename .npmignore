@@ -1,0 +1,9 @@
+.github
+.husky
+test
+.eslintrc
+.eslintignore
+.gitignore
+.mocharc.json
+.prettierignore
+.prettierrc
