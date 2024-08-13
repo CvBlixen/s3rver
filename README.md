@@ -6,4 +6,6 @@ Forked version with latest security issues:
 - `fast-xml-parser`
 - `busboy`
 
+Now requires NodeJS >= 20
+
 For the official readme, [check the official project](https://github.com/jamhall/s3rver).
