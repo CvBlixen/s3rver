@@ -5,6 +5,7 @@
 Forked version with latest security issues:
 - `fast-xml-parser`
 - `busboy`
+- `koa`
 
 Now requires NodeJS >= 20
 
